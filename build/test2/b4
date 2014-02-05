@@ -1,0 +1,4 @@
+bridge 4
+bport 3 9043
+bport 1 9041
+bconn 2 0.0.0.0:9024
