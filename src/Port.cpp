@@ -340,7 +340,7 @@ void Port::sendMessage(const string &msg, bool force)
 {
     // If connected and opened
     if (!m_connected) return;
-    
+
     // If not forced and not opened, abort.
     if (!force && m_displayInfo.getStatus() != ConnectionInfo::Status::OPENED)
         return;

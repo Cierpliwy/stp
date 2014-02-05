@@ -6,11 +6,25 @@
 #include <sys/signalfd.h>
 #include <signal.h>
 #include <ncurses.h>
-
+#include <deque>
+#include <fstream>
+#include <iostream>
 using namespace std;
 
-int main()
+int main(int argc, char *argv[])
 {
+    // Only argument is file for commands history
+    deque<string> history;
+    if (argc == 2) {
+        //Open file and read all command line by line
+        ifstream file(argv[1]);
+        while (file.good()) {
+            char buffer[256];
+            file.getline(buffer, 255);
+            history.push_back(buffer); 
+        } 
+    }
+
     Display display;
     display.setTitle(" EMPTY NODE - SR 2014 - by Przemysław Lenart");
     Node *node = nullptr;
@@ -29,36 +43,42 @@ int main()
     string in;
     while(!exit) {
         display.update();
+        // If there are no commands in history buffer
+        if (history.empty()) {
+            // Select used for input / drawing events
+            fd_set set;
+            FD_ZERO(&set);
+            FD_SET(STDIN_FILENO, &set);
+            FD_SET(drawSignal, &set);
+            if (select(drawSignal + 1, &set, nullptr, nullptr, nullptr) == -1)
+                return 1;
 
-        // Select used for input / drawing events
-        fd_set set;
-        FD_ZERO(&set);
-        FD_SET(STDIN_FILENO, &set);
-        FD_SET(drawSignal, &set);
-        if (select(drawSignal + 1, &set, nullptr, nullptr, nullptr) == -1)
-            return 1;
-
-        // If it was only signal for drawing don't parse input
-        if (FD_ISSET(drawSignal, &set)) {
-            signalfd_siginfo si;
-            if (read(drawSignal, &si, sizeof(si)) != sizeof(si)) return 1;
-            if (si.ssi_signo == SIGWINCH) {
-                endwin();
-                refresh();
+            // If it was only signal for drawing don't parse input
+            if (FD_ISSET(drawSignal, &set)) {
+                signalfd_siginfo si;
+                if (read(drawSignal, &si, sizeof(si)) != sizeof(si)) return 1;
+                if (si.ssi_signo == SIGWINCH) {
+                    endwin();
+                    refresh();
+                }
+                continue;
             }
-            continue;
-        }
 
-        // Get characters
-        int c = getch();
-        if (c != '\n') {
-            if (isprint(c))
-                in += c;
-            if (c == 8 || c == 127 || c == 263)
-                if(!in.empty()) in.pop_back();
+            // Get characters
+            int c = getch();
+            if (c != '\n') {
+                if (isprint(c))
+                    in += c;
+                if (c == 8 || c == 127 || c == 263)
+                    if(!in.empty()) in.pop_back();
 
-            display.setCmd(in);
-            continue;
+                display.setCmd(in);
+                continue;
+            }
+        } else {
+            // Get command from history
+            in = history.front();
+            history.pop_front();
         }
 
         // Clear last error

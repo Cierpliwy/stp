@@ -48,14 +48,31 @@ void BridgePort::bridgeMessageReceived(const std::string &msg)
     uint32_t rootPath = 
         ntohl(*reinterpret_cast<const uint32_t*>(msg.c_str() + 6));
 
+    // Display message
+    MsgInfo info;
+
     // Got message to open port
     if (msg[1] == (char)1) {
         markOpened();
+        info.header = "Open port";
+        m_displayInfo.addMsg(info); 
+        m_node.getDisplay().queueUpdate();
         return;
+    } else {
+        info.header = "Root msg: root=";
+        info.header += to_string(rootID);
+        info.header += ", path=";
+        info.header += to_string(rootPath);
+        m_displayInfo.addMsg(info); 
+        m_node.getDisplay().queueUpdate();
     }
 
     // Depending on state behaviour is different
     if (m_bridge.getState() == Bridge::State::WORKING) {
+        info.header = "Initialize!";
+        m_displayInfo.addMsg(info); 
+        m_node.getDisplay().queueUpdate();
+
         // New bridge in network
         m_bridge.initialize();
         // Handle message
@@ -82,6 +99,12 @@ void BridgePort::connected()
         markOpened();
         return;
     }
+
+    // Display message
+    MsgInfo info;
+    info.header = "Initialize!";
+    m_displayInfo.addMsg(info); 
+    m_node.getDisplay().queueUpdate();
 
     m_bridge.initialize();
 }

@@ -220,23 +220,19 @@ void Bridge::handleCommand(const string &command)
 void Bridge::initialize() {
     BridgeMonitor m(m_monitor);
 
-    // Initialize only if in working state
-    if (m_state == State::LINKING) return;
-
-    // Reset statistics
-    m_rootPath = 1;
-    m_rootID = m_id;
-    m_state = State::LINKING;
-    updateTitle();
+    // Reset statistics only in WORKING state
+    if (m_state == State::WORKING) {
+        m_rootPath = 0;
+        m_rootID = m_id;
+    }
 
     // Prepare message
     string msg = "B";
     msg += (char)(0);
     uint32_t rootID = htonl(m_rootID);
-    uint32_t rootPath = htonl(m_rootPath);
+    uint32_t rootPath = htonl(m_rootPath + 1);
     msg.append(reinterpret_cast<char*>(&rootID), 4);
     msg.append(reinterpret_cast<char*>(&rootPath), 4);
-    m_rootPath = 0;
 
     // Send over all bridge ports
     for(auto &port : m_ports) {
@@ -244,15 +240,19 @@ void Bridge::initialize() {
         if (bridgePort->getType() == BridgePort::Type::CLIENT) {
             bridgePort->markOpened();
         } else { 
-            bridgePort->setRootID(m_id);
-            bridgePort->setRootPath(0);
+            if (m_state == State::WORKING) {
+                bridgePort->setRootID(m_id);
+                bridgePort->setRootPath(0);
+            }
             bridgePort->markClosed();
             bridgePort->updatePortLabel();
             port.second->sendMessage(msg, true);
         }
     }
 
-    //Reset timeout
+    //Set state to linking and reset timeout
+    m_state = State::LINKING;
+    updateTitle();
     setTimeout();
 }
 
